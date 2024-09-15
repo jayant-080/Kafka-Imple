@@ -1,0 +1,71 @@
+version: '3'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-network  
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+
+  topic-manager:
+    build:
+      context: './kafka-service'
+    depends_on:
+      - kafka
+    networks:
+      - kafka-network
+   
+
+  order-service:
+    build:
+      context: './order-service'
+    ports:
+      - "3002:3000"  # Host port 3002 maps to container port 3000
+    depends_on:
+      - topic-manager  
+    networks:
+      - kafka-network
+
+  inventory-service:
+    build:
+      context: './inventory-service'
+    ports:
+      - "3000:3000"  # Host port 3000 maps to container port 3000
+    depends_on:
+      - topic-manager   
+    networks:
+      - kafka-network
+
+  notification-service:
+    build:
+      context: './notification-service'
+    ports:
+      - "3001:3000"  # Host port 3001 maps to container port 3000
+    depends_on:
+      - topic-manager     
+    networks:
+      - kafka-network
+
+  
+
+networks:
+  kafka-network:
+    driver: bridge
